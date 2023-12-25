@@ -1,0 +1,39 @@
+datasets_name: Replica
+input_dir: ./datasets/replica/office1/views             # 数据集文件夹
+output_dir: ./out                       # 输出文件夹
+bound: [[-1.82040763, 2.99040318],[-1.58240831, 2.5230763],[-1.04770684, 1.74905872]]   # bound边界大小
+run_name: office1                          # 实验名称
+device: 2
+
+iterations: 250             # 总迭代次数
+iterations_after: 1000      # 后处理优化迭代次数
+iterations_verts: 0.15      # 优化顶点的迭代比例 超过后不优化顶点
+render_interval: 20         # 控制输出mesh间隔
+lr_vertices: 0.0001         # 顶点优化学习率
+lr_color: 0.01              # 颜色优化学习率
+lr_sh: 0.001                # SH优化学习率
+weight_mask: 1.0            # mask loss weight
+weight_normal_consistency: 1.0  # 法向量一致性损失
+weight_laplacian: 50.0
+weight_shading: 1.0
+weight_depth: 2.0
+weight_edge: 1.0
+shading_percentage: 1.0
+view_sampling_mode: importance_sampling  # importance_sampling
+views_per_iter: 1
+
+# option
+postprocess: true
+
+# octree
+minExtent: 0.1
+minSize: 0.014
+pointsValid: 5
+normalRadius: 0.07
+curvatureTHR: 0.01
+sdfRadius: 0.18
+reconTHR: 10
+minBorder: 0.05   # 将这个设置为1.0可以填补孔洞
+subLevel: 3
+weightMode: false
+allSampleMode: false
