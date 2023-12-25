@@ -8,7 +8,6 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import open3d as o3d
 import nvdiffrast.torch as dr
-import pymeshfix
 
 from core.config import load_config
 from core.io import read_views, read_iphone, read_mesh, write_mesh

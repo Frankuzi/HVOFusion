@@ -1,20 +1,9 @@
-'''
-Author: Frankuzi
-Date: 2023-10-30 23:35:32
-LastEditors: Lily 2810377865@qq.com
-LastEditTime: 2023-12-05 02:10:10
-FilePath: /explictRender/core/shading.py
-Description: 
-
-Copyright (c) 2023 by ${git_name_email}, All Rights Reserved. 
-'''
 import torch
 import torch.nn as nn
 from typing import Callable, Dict, List
 
 from core.view import View
-from core.harmonics import rgb_harmonics
-from core.sh import eval_sh, get_radiance
+from core.sh import get_radiance
 
 class RandomSamples(object):
     # 用于图像像素的随机采样

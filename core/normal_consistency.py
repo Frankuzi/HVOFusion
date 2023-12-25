@@ -1,13 +1,3 @@
-'''
-Author: Frankuzi
-Date: 2023-10-31 13:11:06
-LastEditors: Lily 2810377865@qq.com
-LastEditTime: 2023-11-22 18:02:00
-FilePath: /explictRender/core/normal_consistency.py
-Description: 
-
-Copyright (c) 2023 by ${git_name_email}, All Rights Reserved. 
-'''
 import torch
 
 from core.mesh import Mesh

@@ -1,13 +1,3 @@
-'''
-Author: Frankuzi
-Date: 2023-11-23 23:07:24
-LastEditors: Lily 2810377865@qq.com
-LastEditTime: 2023-11-25 15:42:49
-FilePath: /explictRender/core/sh.py
-Description: 
-
-Copyright (c) 2023 by ${git_name_email}, All Rights Reserved. 
-'''
 import torch
 import numpy as np
 
