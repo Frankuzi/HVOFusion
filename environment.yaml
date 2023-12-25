@@ -1,21 +1,24 @@
 name: expRender
 channels:
   - pytorch
+  - pytorch3d
   - conda-forge
   - defaults
 dependencies:
-  - python=3.8.5
+  - python=3.8
   - pip
-  - pytorch=1.9.1
-  - torchvision=0.10.1
-  - torchaudio=0.9.1
+  - pytorch=1.10.1
+  - torchvision=0.11.2
+  - torchaudio=0.10.1
   - cudatoolkit=11.3
+  - pytorch3d
   - pip:
-    - opencv-python==4.5.2.54
-    - numpy==1.22.3
-    - matplotlib==3.4.3
-    - tqdm==4.56.2
-    - trimesh==3.9.20
-    - pillow==8.1.0 
+    - opencv-python>=4.5.5.64
     - scikit-image==0.18.1
-    - pytorch3d==0.7.5
+    - trimesh==3.9.20
+    - open3d==0.17.0
+    - numpy
+    - matplotlib
+    - tqdm
+    - pillow
+    - natsort

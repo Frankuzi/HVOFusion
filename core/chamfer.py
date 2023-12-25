@@ -1,5 +1,4 @@
 import torch
-import pytorch3d
 from pytorch3d.structures.pointclouds import Pointclouds
 from pytorch3d.loss import chamfer_distance
 from pytorch3d.ops.knn import knn_gather, knn_points

@@ -1,8 +1,16 @@
 ## Installation
-To begin, create a virtual environment using Python 3.8+ with PyTorch 1.9.1 and CUDA toolkit 11.3.
+To begin, create a virtual environment using Python 3.8 with PyTorch 1.10.1 and CUDA toolkit 11.3.
 
 ```bash
 conda env create -f environment.yaml
+```
+
+Install `nvdiffrast`
+
+```bash
+git clone https://github.com/NVlabs/nvdiffrast
+cd nvdiffrast
+pip install .
 ```
 
 Download the dataset from this [link](https://pan.baidu.com/s/1byeUjoqzJCfHEmUZMeNRoQ?pwd=bsjp) and unzip it into the "datasets" folder.

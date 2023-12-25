@@ -23,7 +23,7 @@ from core.chamfer import chamfer_distance
 from core.sh import get_matrix, get_radiance
 
 torch.classes.load_library(
-    "third_party/build/lib.linux-x86_64-3.8/svo.cpython-38-x86_64-linux-gnu.so")
+    "third_party/build/lib.linux-x86_64-cpython-38/svo.cpython-38-x86_64-linux-gnu.so")
 
 
 def main():    
@@ -277,7 +277,7 @@ def main():
         mesh_out.vertex_colors = o3d.utility.Vector3dVector(vertex_colors.detach().cpu())
     
     # 渲染图像 保存mesh
-    render_index = [10]
+    render_index = [0, 19, 39, 59, 79, 99, 119, 139, 159, 179, 199]
     for i in render_index:
         with torch.no_grad():
             debug_view = views[i]
