@@ -8,26 +8,20 @@ class ViewSampler:
     def __init__(self, views, mode, views_per_iter):
         if not mode in self.modes:
             raise ValueError(f"Unknown mode '{mode}'. Available modes are {', '.join(self.modes)}")
-        self.mode = mode                        # 采样模式
-        self.views_per_iter = views_per_iter    # 每次迭代用几个视角
-        self.num_views = len(views)             # 一共有多少个视角
+        self.mode = mode                        
+        self.views_per_iter = views_per_iter    
+        self.num_views = len(views)             
 
         self.current_index = 0
         self.index_buffer = list(range(self.num_views))
-        self.probabilities = None               # importance_sampling的采样概率
-        self.sampled_list = []                  # 记录进行一次importance_sampling的结果
-
-    # @staticmethod
-    # def add_arguments(parser: ArgumentParser):
-    #     group = parser.add_argument_group("View Sampling")
-    #     group.add_argument('--view_sampling_mode', type=str, choices=ViewSampler.modes, default='random', help="Mode used to sample views.")    # 选择数据集中不同视角的方法 可选"random" "sequential"
-    #     group.add_argument('--views_per_iter', type=int, default=1, help="Number of views used per iteration.")     # 每次迭代选择几个视角
+        self.probabilities = None               
+        self.sampled_list = []                  
         
     @staticmethod
     def get_parameters(args):
         return { 
-            "mode": args['view_sampling_mode'],        # 采样模式
-            "views_per_iter": args['views_per_iter']   # 每次迭代用几个视角
+            "mode": args['view_sampling_mode'],        
+            "views_per_iter": args['views_per_iter']   
         }
     
     def update_probabilities(self, losses):
@@ -72,11 +66,11 @@ class ViewSampler:
                     self.current_index = 0
                 else:
                     self.current_index = 0
-                    self.sampled_list = np.random.choice(len(views), size=len(views), replace=True, p=self.probabilities)   # 更新概率表
+                    self.sampled_list = np.random.choice(len(views), size=len(views), replace=True, p=self.probabilities)   
 
             if len(self.sampled_list) == 0:
-                self.sampled_list = np.arange(len(views))       # 初始采用顺序采样
-                self.current_index = 0                          # 设置初始采样位置为0
+                self.sampled_list = np.arange(len(views))       
+                self.current_index = 0                          
             if self.current_index >= len(self.sampled_list):
                 sample_once()
             sampled_index = self.sampled_list[self.current_index]
