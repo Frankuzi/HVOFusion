@@ -10,7 +10,7 @@ setup(
             extra_compile_args={
                 "cxx": ["-O2", "-fopenmp", "-std=c++17"]
             },
-            extra_link_args=["-fopenmp"],  # 添加链接选项
+            extra_link_args=["-fopenmp"],  
         ),
         CppExtension(
             name='svo',
