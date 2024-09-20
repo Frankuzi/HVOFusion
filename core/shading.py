@@ -6,9 +6,8 @@ from core.view import View
 from core.sh import get_radiance
 
 class RandomSamples(object):
-    # 用于图像像素的随机采样
     def __init__(self, h, w, percentage=.5):
-        self.idx = torch.randperm(h*w)[:int(h*w*percentage)]    # 将h*w个数字随机打乱后取百分之percentage的数字
+        self.idx = torch.randperm(h*w)[:int(h*w*percentage)]    
 
     def __call__(self, tensor):
         """ Select samples from a tensor.
@@ -33,7 +32,7 @@ def shading_loss(views: List[View], gbuffers: List[Dict[str, torch.Tensor]], ras
 
         # Sample only within valid area
         if shading_percentage != 1:
-            sample_fn = RandomSamples(view.mask[mask].shape[0], 1, shading_percentage)  # 构建随机采样器
+            sample_fn = RandomSamples(view.mask[mask].shape[0], 1, shading_percentage)  
     
         target_img = sample_fn(view.color[mask])
         target_dep = sample_fn(view.depth[mask])
@@ -47,7 +46,7 @@ def shading_loss(views: List[View], gbuffers: List[Dict[str, torch.Tensor]], ras
             depth_mask = (torch.abs(target_dep - depth) < 0.1).squeeze()
             rast = sample_fn(rast[mask])[depth_mask]
             rast_in = rast.detach().clone().to(torch.long)
-            rast_in -= 1        # 减去一个偏移 https://nvlabs.github.io/nvdiffrast/
+            rast_in -= 1        
 
         radiance = get_radiance(sh, normal, 2).unsqueeze(-1)
         rgb = albedo * radiance
