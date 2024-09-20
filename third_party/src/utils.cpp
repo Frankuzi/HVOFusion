@@ -1,13 +1,5 @@
 #include "../include/utils.h"
 
-/**
- * @description: 给定当前节点的morton code以及搜索方向搜索与当前节点共边的邻居节点的morton code
- * @param {uint32_t} inputCode 输入节点morton code
- * @param {int} *inputIndex 搜索偏移位置
- * @param {int} startDepth 搜索起始深度
- * @param {int} depth 搜索最大深度
- * @return {int64_t} 邻居节点的morton code
- */
 int64_t neighborVoxels(const uint32_t inputCode, const int *inputIndex, int startDepth, const int depth)
 {
     if (startDepth > depth)
@@ -21,34 +13,29 @@ int64_t neighborVoxels(const uint32_t inputCode, const int *inputIndex, int star
     int posX = innerCode & 0x01;
     int posY = (innerCode >> 1) & 0x01;
     int posZ = (innerCode >> 2) & 0x01;
-    // 对三个坐标轴index进行处理
-    if (neighborIndex[0] != 0 && posX + neighborIndex[0] <= 1 && posX + neighborIndex[0] >= 0)   // 判断是否可以在当前voxel内移动
+    if (neighborIndex[0] != 0 && posX + neighborIndex[0] <= 1 && posX + neighborIndex[0] >= 0)   
     {
         uint32_t mask = ~(7u << (startDepth-1)*3);
         uint32_t set = (innerCode & 0x06) | (posX + neighborIndex[0]);
         returnCode = (returnCode & mask) | (set << (startDepth-1)*3);
-        // 更新neighborIndex
         neighborIndex[0] = 0;
     }
-    if (neighborIndex[1] != 0 && posY + neighborIndex[1] <= 1 && posY + neighborIndex[1] >= 0)   // 判断是否可以在当前voxel内移动
+    if (neighborIndex[1] != 0 && posY + neighborIndex[1] <= 1 && posY + neighborIndex[1] >= 0)   
     {
         innerCode = (returnCode >> ((startDepth-1)*3)) & 0x07;
         uint32_t mask = ~(7u << (startDepth-1)*3);
         uint32_t set = (innerCode & 0x05) | ((posY + neighborIndex[1]) << 1);
         returnCode = (returnCode & mask) | (set << (startDepth-1)*3);
-        // 更新neighborIndex
         neighborIndex[1] = 0;
     }
-    if (neighborIndex[2] != 0 && posZ + neighborIndex[2] <= 1 && posZ + neighborIndex[2] >= 0)   // 判断是否可以在当前voxel内移动
+    if (neighborIndex[2] != 0 && posZ + neighborIndex[2] <= 1 && posZ + neighborIndex[2] >= 0)   
     {
         innerCode = (returnCode >> ((startDepth-1)*3)) & 0x07;
         uint32_t mask = ~(7u << (startDepth-1)*3);
         uint32_t set = (innerCode & 0x03) | ((posZ + neighborIndex[2]) << 2);
         returnCode = (returnCode & mask) | (set << (startDepth-1)*3);
-        // 更新neighborIndex
         neighborIndex[2] = 0;
     }
-    // 对三个轴坐标进行判断
     if ((neighborIndex[0] != 0) || (neighborIndex[1] != 0) || ((neighborIndex[2] != 0)))
     {
         int index[3];
@@ -74,10 +61,6 @@ int64_t neighborVoxels(const uint32_t inputCode, const int *inputIndex, int star
     return returnCode;
 }
 
-/**
- * @description: sdf差值函数 marchingCubes中使用
- * @return {*}
- */
 static inline Eigen::Vector3d sdfInterp(const Eigen::Vector3d p1, const Eigen::Vector3d p2, float valp1, float valp2) 
 {
     if (fabs(0.0f - valp1) < 1.0e-5f) return p1;
@@ -92,25 +75,13 @@ static inline Eigen::Vector3d sdfInterp(const Eigen::Vector3d p1, const Eigen::V
                           p1[2] * w1 + p2[2] * w2);
 }
 
-/**
- * @description: Marching Cubes 稠密重建 对于一个单位大小的cubes将其划分为多个subCubes 对每一个subCubes进行构建三角面
- * @param {vector<Eigen::Vector3d>*} verts 用于保存生成三角面顶点的vector<Eigen::Vector3d>指针
- * @param {Eigen::Vector3i*} valid_cords 每个subCubes的原点坐标(相对坐标 单位坐标)
- * @param {Eigen::Tensor<float, 3>} dense_sdf 大小为(n, n, n)的数组 保存了单位大小的cubes划分后的subCubes顶点SDF值
- * @param {vector<bool>} mask 标记不需要构建三角面的subCubes序号
- * @param {uint32_t} num_lif subCubes总数
- * @param {Vector3d} offsets 相对于世界坐标系的偏移量
- * @param {float} scale 相对于时间坐标系的缩放值
- * @return {*}
- * @ref https://github.com/otakuxiang/circle/blob/f02a1b19c06fea03b38f98de569552425f015ddd/torch/system/ext/marching_cubes/mc_kernel.cu
- */
+
 void marchingCubesDense(std::vector<Eigen::Vector3d> &verts, const Eigen::Vector3i* valid_cords,
                             const Eigen::Tensor<double, 3> &dense_sdf, const std::vector<bool> mask,
                             const uint32_t num_lif, const Eigen::Vector3d offsets, const float scale)
 {
     for (uint32_t i = 0; i < num_lif; ++i)
     {
-        // 判断是否是mask的face
         if (mask[i])
             continue;
         // Find all 8 neighbours
@@ -186,16 +157,8 @@ void marchingCubesDense(std::vector<Eigen::Vector3d> &verts, const Eigen::Vector
     }
 }
 
-/**
- * @description: 将深度图投影到空间中
- * @param {Tensor} depth 深度图
- * @param {Tensor} K 相机内参
- * @param {Tensor} Rt 相机外参
- * @return {*}
- */
 torch::Tensor transformToPointCloud(torch::Tensor depth, torch::Tensor K, torch::Tensor Rt)
 {
-    // 相关参数
     int h = depth.size(0);
     int w = depth.size(1);
     float cx = K[0][2].item<float>();
@@ -203,19 +166,16 @@ torch::Tensor transformToPointCloud(torch::Tensor depth, torch::Tensor K, torch:
     float fx = K[0][0].item<float>();
     float fy = K[1][1].item<float>();
     
-    // 图像坐标系
     auto grids = torch::meshgrid({torch::arange(w, torch::kFloat32), torch::arange(h, torch::kFloat32)});
     torch::Tensor u = grids[0].t().flatten();
     torch::Tensor v = grids[1].t().flatten();
 
-    // 将图像坐标系转换为相机坐标系
     torch::Tensor Zc = depth.view({-1});
     torch::Tensor Xc = (u - cx) * Zc / fx;
     torch::Tensor Yc = (v - cy) * Zc / fy;
     torch::Tensor Oc = torch::ones({h * w});
     torch::Tensor camera_coords = torch::stack({Xc, Yc, Zc, Oc});
 
-    // 将相机坐标系转换为世界坐标系
     torch::Tensor world_coords = Rt.mm(camera_coords);
     torch::Tensor points = world_coords.t().slice(1, 0, 3);
 
