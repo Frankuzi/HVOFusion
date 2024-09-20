@@ -3,35 +3,24 @@
 #include "../include/normals.hpp"
 #include "../include/utils.h"
 
-/******************************** Octree 相关函数 **********************************/
-/**
- * @description: Octree 构造函数(默认)
- * @return {*}
- */
+
 Octree::Octree()
     : root_(0), extent_(0), data_(0), normal_(0), normalConf_(0), curvature_(0), verts_(0), voxel_(0), mcVoxels_(0)
 {
 }
 
-/**
- * @description: Octree 构造函数(输入中心点坐标和边长)
- * @param {Tensor} center 八叉树的中心点 世界坐标系
- * @param {double} extent 空间最大边长
- * @return {*}
- */
 Octree::Octree(const Eigen::Vector3d center, double extent, OctreeParams params)
 {
     params_ = params;
     center_[0] = center[0];
     center_[1] = center[1];
     center_[2] = center[2];
-    // 初始化root_节点
     root_ = new Octant;
     root_->x = center[0];
     root_->y = center[1];
     root_->z = center[2];
-    root_->extent = extent;    // 节点边长
-    root_->depth = 0;           // root节点深度为0
+    root_->extent = extent;    
+    root_->depth = 0;           
     extent_ = extent;
     data_ = new std::vector<Eigen::Vector3d>;
     normal_ = new std::vector<Eigen::Vector3d>;
@@ -42,10 +31,6 @@ Octree::Octree(const Eigen::Vector3d center, double extent, OctreeParams params)
     mcVoxels_ = new std::unordered_set<Octant*>;
 }
 
-/**
- * @description: Octree 析构函数
- * @return {*}
- */
 Octree::~Octree()
 {
     root_ = 0;
@@ -64,16 +49,9 @@ Octree::~Octree()
     delete mcVoxels_;
 }
 
-/**
- * @description: Octree 初始化函数配合Octree()使用
- * @param {Tensor} center 八叉树的中心点 世界坐标系
- * @param {double} extent 空间最大边长
- * @return {*}
- */
 void Octree::init(const torch::Tensor center, double extent, double minExtent, double minSize, int64_t pointsValid, double normalRadius,
         double curvatureTHR, double sdfRadius, int64_t reconTHR, double minBorder, int64_t mcInterval, int64_t subLevel, bool weightMode, bool allSampleMode)
 {
-    // 更新配置
     params_.minExtent = minExtent;
     params_.minSize = minSize;
     params_.pointsValid = pointsValid;
@@ -99,9 +77,9 @@ void Octree::init(const torch::Tensor center, double extent, double minExtent, d
     std::cout << "subLevel: " << params_.subLevel << std::endl;
     std::cout << "weightMode: " << params_.weightMode << std::endl;
     std::cout << "allSampleMode: " << params_.allSampleMode << std::endl;
-    // 定义tensor坐标访问器
-    auto points = center.accessor<float, 1>();          // 定义一个Accessors用于高效的访问points元素 二维
-    if (points.size(0) != 3)                            // 确定points的第二维是3维的表示空间点
+
+    auto points = center.accessor<float, 1>();          
+    if (points.size(0) != 3)                            
     {
         std::cout << "Point dimensions mismatch: inputs are " << points.size(0) << " expect 3" << std::endl;
         return;
@@ -110,13 +88,12 @@ void Octree::init(const torch::Tensor center, double extent, double minExtent, d
     center_[0] = points[0];
     center_[1] = points[1];
     center_[2] = points[2];
-    // 初始化root_节点
     root_ = new Octant;
     root_->x = points[0];
     root_->y = points[1];
     root_->z = points[2];
-    root_->extent = extent;    // 节点边长
-    root_->depth = 0;           // root节点深度为0
+    root_->extent = extent;    
+    root_->depth = 0;           
     extent_ = extent;
     data_ = new std::vector<Eigen::Vector3d>;
     normal_ = new std::vector<Eigen::Vector3d>;
@@ -127,10 +104,6 @@ void Octree::init(const torch::Tensor center, double extent, double minExtent, d
     mcVoxels_ = new std::unordered_set<Octant*>;
 }
 
-/**
- * @description: 清空 Octree
- * @return {*}
- */
 void Octree::clear()
 {
     root_ = 0;
@@ -142,20 +115,16 @@ void Octree::clear()
     voxel_ = 0;
 }
 
-/**
- * @description: Octant 构造函数
- * @return {*}
- */
 Octree::Octant::Octant()
     : isLeaf(true), isFixed(0), isFixedLast(0), isUpdated(false), x(0.0f), y(0.0f), z(0.0f), extent(0.0f), depth(0),
     curvature(0.0f), sdf(0), triangles(0), mortonCode(0), size(0), frames(0), weight(0), lastWeight(0), curveWeight(0)
 {
-    isFixed = new bool[8];      // 初始化8个顶点都可以更新
+    isFixed = new bool[8];      
     isFixedLast = new bool[8];
-    frames = new int[8];        // 初始化8个顶点frames值为-1
-    sdf = new double[8];        // 初始化8个顶点sdf值为0
-    weight = new uint32_t[8];     // 初始化8个顶点weight值为0
-    lastWeight = new uint32_t[8];     // 初始化8个顶点lastWeight值为0
+    frames = new int[8];        
+    sdf = new double[8];        
+    weight = new uint32_t[8];     
+    lastWeight = new uint32_t[8];     
     std::fill(isFixed, isFixed + 8, false);
     std::fill(isFixedLast, isFixedLast + 8, false);
     std::fill(frames, frames + 8, -1);
@@ -166,10 +135,6 @@ Octree::Octant::Octant()
     memset(&neighbor, 0, 26 * sizeof(Octant *));
 }
  
-/**
- * @description: Octant 析构函数
- * @return {*}
- */
 Octree::Octant::~Octant()
 {
     delete sdf;
@@ -182,38 +147,20 @@ Octree::Octant::~Octant()
         delete neighbor[i];
 }
 
-/**
- * @description: 向Octree中插入一帧点云并计算法向量更新SDF
- * @param {Matrix<double, Eigen::Dynamic, 3>} points 每一帧输入的点云 (n, 3)
- * @param {Vector3d} camera 相机位置 (3)
- * @return {*}
- */
 void Octree::insert(const Eigen::Matrix<double, Eigen::Dynamic, 3> &points, const Eigen::Vector3d &camera)
 {
-    // 插入点
-    std::unordered_set<Octant*> voxels;     // 记录了被插入点的voxels
+    std::unordered_set<Octant*> voxels;     
     for (int i = 0; i < points.rows(); ++i)
     {
         insertOctant(points.row(i).transpose(), root_, extent_, 0, voxels);
     }
-    // 计算当前帧法向量
-    normal_->resize(data_->size());     // 将法向量的数组大小扩展到与data_一致
-    normalConf_->resize(data_->size()); // 将法向量置信度数组大小扩展到与data_一致
-    curvature_->resize(data_->size());  // 将曲率数组大小扩展到与data_一致
+    normal_->resize(data_->size());     
+    normalConf_->resize(data_->size()); 
+    curvature_->resize(data_->size());  
     updateNormals(camera, voxels);
-    // 计算当前帧SDF
     updateVoxel(voxels);
 }
 
-/**
- * @description: 向Octree中插入一个点 递归插入
- * @param {Vector3d&} point 插入点坐标
- * @param {Octant*} octant  当前层级节点指针
- * @param {double} extent    当前层级节点长度
- * @param {uint32_t} morton 累加的morton码
- * @param {std::unordered_set<Octant*>} voxels 因为插入点后受到影响的voxels
- * @return {void} 
- */
 void Octree::insertOctant(const Eigen::Vector3d& point, Octant* octant, double extent, uint32_t morton, std::unordered_set<Octant*> &voxels)
 {
     const std::vector<Eigen::Vector3d>& points = *data_;
@@ -221,102 +168,85 @@ void Octree::insertOctant(const Eigen::Vector3d& point, Octant* octant, double e
     if (extent > params_.minExtent)
     {
         if (octant->isLeaf)             
-            octant->isLeaf = false;     // 节点分裂 设置为False
+            octant->isLeaf = false;     
         
         uint32_t mortonCode = 0;
         Octant* childOctant;    
         double childExtent;
-        // 每个点point和x点比较确定在x周围8个区域的哪个部分
         if (point[0] > octant->x) mortonCode |= 1;
         if (point[1] > octant->y) mortonCode |= 2;
         if (point[2] > octant->z) mortonCode |= 4;
-        if (octant->child[mortonCode])     // 如果子节点存在那么直接读出相关参数
+        if (octant->child[mortonCode])     
         {
             childOctant = octant->child[mortonCode];
             childExtent = childOctant->extent;
         }
         else
         {
-            // 定义子节点宽度
             childExtent = 0.5 * extent;      
-            // 更新中心坐标
             static const double factor[] = {-0.5, 0.5};
-            double childX = octant->x + factor[(mortonCode & 1) > 0] * extent / 2.0;    // childxyz表示8个子区域的中点
+            double childX = octant->x + factor[(mortonCode & 1) > 0] * extent / 2.0;    
             double childY = octant->y + factor[(mortonCode & 2) > 0] * extent / 2.0;
             double childZ = octant->z + factor[(mortonCode & 4) > 0] * extent / 2.0;
-            // 创建新的子节点
             childOctant = new Octant;
-            childOctant->x = childX;              // 中心点坐标
+            childOctant->x = childX;              
             childOctant->y = childY;
             childOctant->z = childZ;
-            childOctant->extent = childExtent;    // 节点边长
-            childOctant->depth = octant->depth + 1;         // 深度
+            childOctant->extent = childExtent;    
+            childOctant->depth = octant->depth + 1;         
             octant->child[mortonCode] = childOctant;
-            if (childExtent <= params_.minExtent)       // 插入叶子结点
+            if (childExtent <= params_.minExtent)       
             {
                 voxel_->push_back(childOctant);
                 childOctant->mortonCode = (morton <<  3) + mortonCode;
             }
         }
         uint32_t size = childOctant->size;
-        morton = (morton <<  3) + mortonCode;     // 依次保存点的层次信息morton code
-        // 继续调用递归
+        morton = (morton <<  3) + mortonCode;     
         insertOctant(point, childOctant, childExtent, morton, voxels);
-        if (size != childOctant->size)            // 说明添加了节点
+        if (size != childOctant->size)            
         {
             octant->size += 1;
         }
     }
-    else    // 不用分类 直接插入点 这是唯一可以插入points的地方
+    else    
     {
         if (octant->size == 0)
         {
-            for (uint32_t i = 0; i < 26; ++i)   // 遍历周围26个位置
+            for (uint32_t i = 0; i < 26; ++i)  
             {
                 if (octant->neighbor[i] != nullptr)
                     continue;
                 auto neighborCode = neighborVoxels(morton, neighborTable[i], 1, octant->depth);
-                // 构造周围节点的voxel
                 auto neighborOctant = createOctantSimply(root_, neighborCode, 1, octant->depth);
-                // 找到了周围节点
                 octant->neighbor[i] = neighborOctant;
                 neighborOctant->neighbor[oppNeighborTableID[i]] = octant;
             }
         }
 
-        // 遍历该voxel中的所有点 判断是否满足插入距离
         for (uint32_t i = 0; i < octant->size; ++i)
         {
-            const Eigen::Vector3d& p = points[octant->successors_[i]];      // 取出空间点坐标
-            // 基于L2距离是比较
-            auto dis = L2Distance::compute(point, p);                       // 计算两点之间的距离差异
-            if (dis < std::pow(params_.minSize, 2))                         // 比较距离小于阈值
+            const Eigen::Vector3d& p = points[octant->successors_[i]];      
+
+            auto dis = L2Distance::compute(point, p);                       
+            if (dis < std::pow(params_.minSize, 2))                         
                 return;
-            // 基于L1距离的比较
+
             // auto dis = L1Distance::compute(point, p);
-            // if (dis < params_.minSize)                         // 比较距离小于阈值
+            // if (dis < params_.minSize)                         
             //     return;
 
         }
         
         octant->size += 1;
-        data_->push_back(point); // 将点云插入到data_中
+        data_->push_back(point); 
         octant->successors_.push_back(data_->size()-1);
-        // 遍历自身和周围26个voxels并记录下来
         voxels.insert(octant);
         for (uint32_t i = 0; i < 26; ++i)
             voxels.insert(octant->neighbor[i]);
     }
 }
 
-/**
- * @description: 创建一个空的voxel 并不包含任何点云数据 主要为了填补表面空缺或者漏洞区域 （带有邻居节点创建）
- * @param {Octant*} octant 当前层级节点指针
- * @param {uint32_t} morton 需要创建节点的morton code
- * @param {int} startDepth 搜索起始深度
- * @param {int} depth 搜索最大深度
- * @return {Octant*} 返回创建后的节点指针
- */
 Octree::Octant* Octree::createOctant(Octant* octant, uint32_t morton, uint32_t startDepth, const uint32_t maxDepth)
 {
     Octant* childOctant;
@@ -325,64 +255,50 @@ Octree::Octant* Octree::createOctant(Octant* octant, uint32_t morton, uint32_t s
     if (startDepth > maxDepth)
     {
         octant->mortonCode = morton;
-        for (uint32_t i = 0; i < 26; ++i)   // 遍历周围26个位置
+        for (uint32_t i = 0; i < 26; ++i)   
         {
             if (octant->neighbor[i] != nullptr)
                 continue;
             auto neighborCode = neighborVoxels(morton, neighborTable[i], 1, octant->depth);
-            // 构造周围节点的voxel
             auto neighborOctant = createOctantSimply(root_, neighborCode, 1, octant->depth);
-            // 找到了周围节点
             octant->neighbor[i] = neighborOctant;
             neighborOctant->neighbor[oppNeighborTableID[i]] = octant;
         }
-        return octant;      // 如果到达最深深度就直接返回当前节点指针
+        return octant;      
     }
     
     if (octant->isLeaf)             
-        octant->isLeaf = false;     // 节点分裂 设置为False
+        octant->isLeaf = false;     
     auto mortonCode = (morton >> ((maxDepth-startDepth)*3)) & 0x07;
-    if (octant->child[mortonCode] == 0)       // 如果当前节点不存在就创建节点
+    if (octant->child[mortonCode] == 0)       
     {
-        // 定义子节点宽度
         childExtent = 0.5 * octant->extent;      
-        // 更新中心坐标
         static const double factor[] = {-0.5, 0.5};
-        double childX = octant->x + factor[(mortonCode & 1) > 0] * octant->extent / 2.0;    // childxyz表示8个子区域的中点
+        double childX = octant->x + factor[(mortonCode & 1) > 0] * octant->extent / 2.0;    
         double childY = octant->y + factor[(mortonCode & 2) > 0] * octant->extent / 2.0;
         double childZ = octant->z + factor[(mortonCode & 4) > 0] * octant->extent / 2.0;
-        // 创建新的子节点
         childOctant = new Octant;
-        childOctant->x = childX;              // 中心点坐标
+        childOctant->x = childX;              
         childOctant->y = childY;
         childOctant->z = childZ;
-        childOctant->extent = childExtent;    // 节点边长
-        childOctant->depth = octant->depth + 1;         // 深度
+        childOctant->extent = childExtent;    
+        childOctant->depth = octant->depth + 1;         
         octant->child[mortonCode] = childOctant;
         if (childOctant->depth >= maxDepth)
         {
             voxel_->push_back(childOctant);
         }
     }
-    else    // 如果节点存在那么直接调用
+    else    
     {
         childOctant = octant->child[mortonCode];
         childExtent = childOctant->extent;
     }
-    // 继续调用递归
     auto leafOctant = createOctant(childOctant, morton, startDepth+1, maxDepth);
 
     return leafOctant;
 }
 
-/**
- * @description: 创建一个空的voxel 并不包含任何点云数据 主要为了填补表面空缺或者漏洞区域 （不带有邻居节点创建）
- * @param {Octant*} octant 当前层级节点指针
- * @param {uint32_t} morton 需要创建节点的morton code
- * @param {int} startDepth 搜索起始深度
- * @param {int} depth 搜索最大深度
- * @return {Octant*} 返回创建后的节点指针
- */
 Octree::Octant* Octree::createOctantSimply(Octant* octant, uint32_t morton, uint32_t startDepth, const uint32_t maxDepth)
 {
     Octant* childOctant;
@@ -391,61 +307,49 @@ Octree::Octant* Octree::createOctantSimply(Octant* octant, uint32_t morton, uint
     if (startDepth > maxDepth)
     {
         octant->mortonCode = morton;
-        return octant;      // 如果到达最深深度就直接返回当前节点指针
+        return octant;      
     }
     
     auto mortonCode = (morton >> ((maxDepth-startDepth)*3)) & 0x07;
-    if (octant->child[mortonCode] == 0)       // 如果当前节点不存在就创建节点
+    if (octant->child[mortonCode] == 0)       
     {
-        // 定义子节点宽度
         childExtent = 0.5 * octant->extent;      
-        // 更新中心坐标
         static const double factor[] = {-0.5, 0.5};
-        double childX = octant->x + factor[(mortonCode & 1) > 0] * octant->extent / 2.0;    // childxyz表示8个子区域的中点
+        double childX = octant->x + factor[(mortonCode & 1) > 0] * octant->extent / 2.0;    
         double childY = octant->y + factor[(mortonCode & 2) > 0] * octant->extent / 2.0;
         double childZ = octant->z + factor[(mortonCode & 4) > 0] * octant->extent / 2.0;
-        // 创建新的子节点
         childOctant = new Octant;
-        childOctant->x = childX;              // 中心点坐标
+        childOctant->x = childX;              
         childOctant->y = childY;
         childOctant->z = childZ;
-        childOctant->extent = childExtent;    // 节点边长
-        childOctant->depth = octant->depth + 1;         // 深度
+        childOctant->extent = childExtent;    
+        childOctant->depth = octant->depth + 1;         
         octant->child[mortonCode] = childOctant;
         if (childOctant->depth >= maxDepth)
         {
             voxel_->push_back(childOctant);
         }
     }
-    else    // 如果节点存在那么直接调用
+    else    
     {
         childOctant = octant->child[mortonCode];
         childExtent = childOctant->extent;
     }
-    // 继续调用递归
     auto leafOctant = createOctantSimply(childOctant, morton, startDepth+1, maxDepth);
 
     return leafOctant;
 }
 
-/**
- * @description: 更新指定点的法向量
- * @param {Vector3d&} camera 相机空间位置
- * @param {std::unordered_set<Octant*>} voxels 需要计算法向量的octants
- * @return {*}
- */
 void Octree::updateNormals(const Eigen::Vector3d& camera, std::unordered_set<Octant*> &voxels)
 {
-    // 定义计算变量
-    const std::vector<Eigen::Vector3d> &points = *data_;        // 点云数据
-    std::vector<Eigen::Vector3d> &normals = *normal_;           // 点云法向量
-    std::vector<bool> &normalConf = *normalConf_;               // 点云法向量置信度
-    std::vector<double> &curvature = *curvature_;              // 点云曲率
+    const std::vector<Eigen::Vector3d> &points = *data_;        
+    std::vector<Eigen::Vector3d> &normals = *normal_;           
+    std::vector<bool> &normalConf = *normalConf_;               
+    std::vector<double> &curvature = *curvature_;              
     
     float sqrRadius = L2Distance::sqr(params_.normalRadius);  // "squared" radius
     std::vector<uint32_t> resultIndices;
     
-    // 取出voxels中的所有点
     std::vector<uint32_t> queryIdx;
     for (auto v: voxels) 
     {
@@ -455,12 +359,10 @@ void Octree::updateNormals(const Eigen::Vector3d& camera, std::unordered_set<Oct
     #pragma omp parallel for private(resultIndices)
     for (uint32_t i = 0; i < queryIdx.size(); ++i) 
     {
-        if (normalConf[queryIdx[i]])      // 如果是有效的法向量，那么就不再重新计算了
+        if (normalConf[queryIdx[i]])      
             continue;
         resultIndices.clear();
-        // 查询节点邻居
         radiusNeighbors(root_, points[queryIdx[i]], params_.normalRadius, sqrRadius, resultIndices);
-        // 判断改点是否为有效点 如果其周围点数量超过阈值那么就是有效点
         if (resultIndices.size() < params_.pointsValid)
             continue;
         
@@ -488,7 +390,6 @@ void Octree::updateNormals(const Eigen::Vector3d& camera, std::unordered_set<Oct
         double curve = eivals(0) / (eivals(0) + eivals(1) + eivals(2) + 1e-9);      
         Eigen::Matrix<double, 3, 1, Eigen::DontAlign> normal = eivecs.col(0);
 
-        // 更新法向量正负 相机所在方向法向量为正
         Eigen::Vector3d orientation = camera - points[queryIdx[i]];
         if (normal.norm() == 0.0) 
         {
@@ -506,23 +407,15 @@ void Octree::updateNormals(const Eigen::Vector3d& camera, std::unordered_set<Oct
             normal *= -1.0;
         }
         
-        // 保存最终结果
         normals[queryIdx[i]] = normal;
         normalConf[queryIdx[i]] = true;
         curvature[queryIdx[i]] = curve;
     }
 }
 
-/**
- * @description: 更新当前节点的平均曲率
- * @param {Octant*} octant 当前节点
- * @return {*}
- */
 void Octree::updateCurvature(Octant* octant)
 {
     const std::vector<Eigen::Vector3d>& normals = *normal_;
-    // 1. 遍历voxel所有点的法向量构造协方差矩阵
-    // 定义计算变量
     double centroid0 = 0;
     double centroid1 = 0;
     double centroid2 = 0;
@@ -574,18 +467,10 @@ void Octree::updateCurvature(Octant* octant)
     if (eigenvalue[2] == 0)
         octant->curvature = 0;
     else
-        octant->curvature = eigenvalue[0]/eigenvalue[2];        // 用最小特征值/最大特征值作为曲率
+        octant->curvature = eigenvalue[0]/eigenvalue[2];        
 }
-/************************************ END ************************************/
 
-/**************************** Octree 搜索相关函数 ******************************/
 
-/**
- * @description: 搜索子节点中的叶节点中的successors_指针
- * @param {Octant*} octant 从当前节点开始搜索子节点
- * @param {vector<uint32_t>} successors 用于保存结果的vector
- * @return {*}
- */
 void Octree::subSuccessors(const Octant* octant, std::vector<uint32_t> &successors)
 {
     if (octant == nullptr)
@@ -603,13 +488,6 @@ void Octree::subSuccessors(const Octant* octant, std::vector<uint32_t> &successo
     }
 }
 
-/**
- * @description: 判断查询点query及其搜索半径是否完全被节点o包含
- * @param {Vector3d&} query 查询点
- * @param {double} sqRadius 搜索平方半径
- * @param {Octant*} o 当前节点
- * @return {*}
- */
 bool Octree::contains(const Eigen::Vector3d& query, double sqRadius, const Octant* o)
 {
     // we exploit the symmetry to reduce the test to test
@@ -629,14 +507,6 @@ bool Octree::contains(const Eigen::Vector3d& query, double sqRadius, const Octan
     return (L2Distance::norm(x, y, z) < sqRadius);
 }
 
-/**
- * @description: 判断查询点query及其搜索半径是否与节点o范围有重合
- * @param {Vector3d&} query 查询点
- * @param {double} radius 搜索半径
- * @param {double} sqRadius 搜索平方半径
- * @param {Octant*} o 当前节点
- * @return {*}
- */
 bool Octree::overlaps(const Eigen::Vector3d& query, double radius, double sqRadius, const Octant* o)
 {
     // we exploit the symmetry to reduce the test to testing if its inside the Minkowski sum around the positive quadrant.
@@ -650,14 +520,14 @@ bool Octree::overlaps(const Eigen::Vector3d& query, double radius, double sqRadi
 
     double maxdist = radius + (o->extent)/2.0f;
 
-    // Completely outside, since q' is outside the relevant area.   如果voxel完全在搜索半径外面 那么返回false
+    // Completely outside, since q' is outside the relevant area.   
     if (x > maxdist || y > maxdist || z > maxdist) return false;
 
-    int32_t num_less_extent = (x < (o->extent)/2.0f) + (y < (o->extent)/2.0f) + (z < (o->extent)/2.0f);    // 判断三个坐标轴坐标有几个坐标在范围内
+    int32_t num_less_extent = (x < (o->extent)/2.0f) + (y < (o->extent)/2.0f) + (z < (o->extent)/2.0f);    
 
     // Checking different cases:
 
-    // a. inside the surface region of the octant. 搜索点query落在这个voxel内
+    // a. inside the surface region of the octant. 
     if (num_less_extent > 1) return true;
 
     // b. checking the corner region && edge region.
@@ -668,13 +538,6 @@ bool Octree::overlaps(const Eigen::Vector3d& query, double radius, double sqRadi
     return (L2Distance::norm(x, y, z) < sqRadius);
 }
 
-/**
- * @description: 判断查询点query及其搜索半径是否完全被节点o包含
- * @param {Vector3d&} query 查询点
- * @param {double} radius 搜索半径
- * @param {Octant*} octant 当前节点
- * @return {*}
- */
 bool Octree::inside(const Eigen::Vector3d& query, double radius, const Octant* octant)
 {
     // we exploit the symmetry to reduce the test to test
@@ -697,49 +560,37 @@ bool Octree::inside(const Eigen::Vector3d& query, double radius, const Octant* o
     return true;
 }
 
-/**
- * @description: 自上而下在查询点的指定半径内搜索其邻居点
- * @param {Octant*} octant 当前搜索Octree节点
- * @param {Vector3d&} query 查询点坐标
- * @param {double} radius    搜索半径
- * @param {double} sqrRadius 搜索平方半径
- * @param {vector<uint32_t>&} resultIndices 保存查询结果
- * @return {*}
- */
 void Octree::radiusNeighbors(const Octant* octant, const Eigen::Vector3d& query, double radius,
                                                  double sqrRadius, std::vector<uint32_t>& resultIndices) const
 {
     const std::vector<Eigen::Vector3d>& points = *data_;
 
-    // 第一种情况 如果voxel的最远点在radius半径内 也就是整个voxel都在搜索半径内 那么我们直接将voxel的所有点push到resultIndices和distances中
-    if (contains(query, sqrRadius, octant))             // 给定 查找的点云坐标query 查找半径平方sqrRadius 以及voxel的中心点octant 查找这个voxel的最远点是否在搜索半径内
+    if (contains(query, sqrRadius, octant))             
     {
         std::vector<uint32_t> pointVec;
         subSuccessors(octant, pointVec);
-        for (uint32_t i = 0; i < pointVec.size(); ++i)     // octant->size 表示这个voxel中包含多少点云
+        for (uint32_t i = 0; i < pointVec.size(); ++i)     
         {
-            resultIndices.push_back(pointVec[i]);          // 保存节点index
+            resultIndices.push_back(pointVec[i]);          
         }
-        return;  // 嵌套退出
+        return;  
     }
 
-    // 第二种情况 如果voxel是叶节点 但voxel并不在搜索半径内 逐个搜索节点仅保存在搜索半径的点
-    if (octant->isLeaf)     // 如果这个voxel的最远点不在搜索半径内 但是叶子节点
+    if (octant->isLeaf)     
     {
         for (uint32_t i = 0; i < octant->size; ++i)
         {
-            uint32_t pointIdx = octant->successors_[i];     // 读取节点中点云的idx
-            const Eigen::Vector3d& p = points[pointIdx];    // 子节点的坐标
-            double dist = L2Distance::compute(query, p);     // 计算子节点的坐标和查询点坐标之间的距离
-            if (dist < sqrRadius)       // 仅保存距离小于搜索半径的点
+            uint32_t pointIdx = octant->successors_[i];     
+            const Eigen::Vector3d& p = points[pointIdx];    
+            double dist = L2Distance::compute(query, p);     
+            if (dist < sqrRadius)       
             {
                 resultIndices.push_back(pointIdx);
             }
         }
-        return;     // 嵌套退出
+        return;     
     }
 
-    // 第三种情况 如果该voxel即不完全在搜索半径内 而且也不是叶子voxel 因此要进一步将voxel分为8块依次搜索每一块内的子voxel
     for (uint32_t c = 0; c < 8; ++c)
     {
         if (octant->child[c] == 0) continue;
@@ -748,15 +599,6 @@ void Octree::radiusNeighbors(const Octant* octant, const Eigen::Vector3d& query,
     }
 }
 
-/**
- * @description: 自上而下搜索距离查询点最近的邻居节点
- * @param {Octant*} octant 当前节点
- * @param {Vector3d&} query 查询点坐标
- * @param {double} minDistance 查询范围最小距离
- * @param {double&} maxDistance 查询范围最大距离
- * @param {uint32_t&} resultIndex 保存查询结果
- * @return {*}
- */
 bool Octree::findNeighbor(const Octant* octant, const Eigen::Vector3d& query, double minDistance,
                                               double& maxDistance, uint32_t& resultIndex) const
 {
@@ -772,11 +614,10 @@ bool Octree::findNeighbor(const Octant* octant, const Eigen::Vector3d& query, do
 
         for (uint32_t i = 0; i < octant->size; ++i)
         {
-            uint32_t pointIdx = octant->successors_[i];     // 读取节点中点云的idx
-            // 判断有效点 如果搜索到的最近点不是有效点那么要继续搜索
+            uint32_t pointIdx = octant->successors_[i];     
             if (normalConf[pointIdx])
             {
-                const Eigen::Vector3d& p = points[pointIdx];    // 子节点的坐标
+                const Eigen::Vector3d& p = points[pointIdx];    
                 double dist = L2Distance::compute(query, p);
                 if (dist > sqrMinDistance && dist < sqrMaxDistance)
                 {
@@ -822,21 +663,15 @@ bool Octree::findNeighbor(const Octant* octant, const Eigen::Vector3d& query, do
     // all children have been checked...check if point is inside the current octant...
     return inside(query, maxDistance, octant);
 }
-/************************************ END ************************************/
 
-/**************************** 模型网格生成以及分裂 *****************************/
-/**
- * @description: 删除octant中的顶点 对应verts中指定的index顶点
- * @param {Octant*} octant 当前节点
- * @return {*}
- */
+
 void Octree::trianglesClear(Octant* octant)
 {
     VertsArray& verts = *verts_;
     for (std::vector<Eigen::Vector3i>::iterator it = octant->triangles->begin(); it != octant->triangles->end(); ++it)
     {
         Eigen::Vector3i& triangles = *it;
-        for (uint32_t k = 0; k < 3 ; ++k)   // 遍历这个三角形的三个顶点idx
+        for (uint32_t k = 0; k < 3 ; ++k)   
         {
             verts.remove(triangles[k], octant->mortonCode);
         }
@@ -844,10 +679,6 @@ void Octree::trianglesClear(Octant* octant)
     octant->triangles->clear();
 }
 
-/**
- * @description: sdf差值函数 marchingCubes中使用
- * @return {*}
- */
 static inline Eigen::Vector3d sdfInterp(const Eigen::Vector3d p1, const Eigen::Vector3d p2, double valp1, double valp2) 
 {
     // if (fabs(0.0f - valp1) < 1.0e-5f) return p1;
@@ -862,30 +693,18 @@ static inline Eigen::Vector3d sdfInterp(const Eigen::Vector3d p1, const Eigen::V
                           p1[2] * w1 + p2[2] * w2);
 }
 
-/**
- * @description: 对八叉树中的每个叶子结点的voxel执行MarchingCubes
- * @param {Octant*} octant 八叉树叶子结点voxel指针
- * @param {Eigen::Vector3i*} valid_cords 表示叶节点中voxel的尺寸 如果是1就表示没有分裂
- * @param {Eigen::Tensor<double, 3>} dense_sdf 大小可变的保存SDF数组 大小与valid_cords大小相关
- * @param {vector<bool>} mask 标记不需要构建三角面的subCubes序号
- * @param {uint32_t} level 分裂层级
- * @param {Eigen::Vector3d} offsets 
- * @return {*}
- */
 void Octree::marchingCubesSparse(Octant* octant, const Eigen::Vector3i* valid_cords, const Eigen::Tensor<double, 3> &dense_sdf,
                                  const std::vector<bool> mask, const uint32_t level,const Eigen::Vector3d offsets)
 {
-    // 判断该octant是否已经初始化了triangles Vector容器
     if (octant->triangles == nullptr)
-        octant->triangles = new std::vector<Eigen::Vector3i>;       // 为每一个叶子voxel分配三角形顶点容器
+        octant->triangles = new std::vector<Eigen::Vector3i>;       
     else
     {
-        if (!params_.meshOverlap)               // 如果不允许重复面那么在重新构造面的时候就要删除
+        if (!params_.meshOverlap)               
             trianglesClear(octant);
     }
         
     VertsArray& verts = *verts_;
-    // 遍历该节点在周围邻居 将verts的face保存下来
     std::vector<Eigen::Vector3i> neighborTriangles;
     neighborTriangles.insert(neighborTriangles.end(), octant->triangles->begin(), octant->triangles->end());
     for (uint32_t i = 0; i < 26; ++i)
@@ -895,25 +714,21 @@ void Octree::marchingCubesSparse(Octant* octant, const Eigen::Vector3i* valid_co
             continue;
         neighborTriangles.insert(neighborTriangles.end(), neighborOctant->triangles->begin(), neighborOctant->triangles->end());
     }
-    // 使用MarchingDense函数 生成多个mesh顶点
-    std::vector<Eigen::Vector3d> vp;        // 用于保存MarchingDense函数生成的顶点
+    
+    std::vector<Eigen::Vector3d> vp;       
     marchingCubesDense(vp, valid_cords, dense_sdf, mask, level*level*level, offsets, octant->extent/level);
-    // 筛选输出的顶点去除重复和错误点
     for (uint32_t i = 0; i < vp.size()/3; ++i)
     {
-        Eigen::Vector3i vt;         // 用于保存faceID
+        Eigen::Vector3i vt;         
         for (uint32_t j = 0; j < 3; ++j)
         {
-            // 遍历该节点的周围其他节点的verts 判断是否是重复的顶点
             bool isRepeat = false;
             uint32_t repeatNum;
             for (uint32_t it = 0; it < neighborTriangles.size(); ++it)
             {
-                Eigen::Vector3i triangles = neighborTriangles[it];   // 取出一个triangles（包含三角形三个顶点idx）
-                for (uint32_t k = 0; k < 3 ; ++k)   // 遍历这个三角形的三个顶点idx
+                Eigen::Vector3i triangles = neighborTriangles[it];   
+                for (uint32_t k = 0; k < 3 ; ++k)   
                 {
-                    // 由于sdfInterp中浮点数运输会引入舍入误差所以不采用 // if (vp[vi] == verts[triangles[k]].point)
-                    // 使用近似相等判断
                     if ((std::abs(vp[3*i+j][0] - verts[triangles[k]].point[0]) < 1e-4) && (std::abs(vp[3*i+j][1] - verts[triangles[k]].point[1]) < 1e-4) && (std::abs(vp[3*i+j][2] - verts[triangles[k]].point[2]) < 1e-4))
                     {
                         repeatNum = triangles[k];
@@ -936,7 +751,6 @@ void Octree::marchingCubesSparse(Octant* octant, const Eigen::Vector3i* valid_co
                 vt[j] = verts.raw_insert(vp[3*i+j], octant->mortonCode);
             }
         }
-        // 去除退化的face 比如 17 17 5 或者 248 65 248 要删除这种面
         if (((std::abs(vp[3*i][0] - vp[3*i+1][0]) < 1e-5) && (std::abs(vp[3*i][1] - vp[3*i+1][1]) < 1e-5) && (std::abs(vp[3*i][2] - vp[3*i+1][2]) < 1e-5)) ||
             ((std::abs(vp[3*i][0] - vp[3*i+2][0]) < 1e-5) && (std::abs(vp[3*i][1] - vp[3*i+2][1]) < 1e-5) && (std::abs(vp[3*i][2] - vp[3*i+2][2]) < 1e-5)) ||
             ((std::abs(vp[3*i+1][0] - vp[3*i+2][0]) < 1e-5) && (std::abs(vp[3*i+1][1] - vp[3*i+2][1]) < 1e-5) && (std::abs(vp[3*i+1][2] - vp[3*i+2][2]) < 1e-5)))
@@ -947,15 +761,10 @@ void Octree::marchingCubesSparse(Octant* octant, const Eigen::Vector3i* valid_co
             continue;
         }
         octant->triangles->push_back(vt);
-        neighborTriangles.push_back(vt);        // 重要！
+        neighborTriangles.push_back(vt);      
     }
 }
 
-/**
- * @description: 从点云中生成模型三角面主函数 包括计算Cubes顶点的SDF值
- * @param {std::unordered_set<Octant*>} voxels 需要Marching Cubes的octants
- * @return {*}
- */
 void Octree::updateVoxel(std::unordered_set<Octant*> &voxels)
 {
     const std::vector<Eigen::Vector3d>& points = *data_;
@@ -964,31 +773,28 @@ void Octree::updateVoxel(std::unordered_set<Octant*> &voxels)
     const std::vector<double> &curvature = *curvature_;
 
     std::vector<Octant*> voxelsList;
-    voxelsList.insert(voxelsList.end(), voxels.begin(), voxels.end());     // c++17 特性将unordered_set迁移到voxelsList
+    voxelsList.insert(voxelsList.end(), voxels.begin(), voxels.end());     
 
-    // 第一次处理所有叶节点包括：计算叶节点cubes的顶点SDF 然后生成三角面 这一步同时要对曲率和边界位置进行判定
     #pragma omp parallel for
     for (uint32_t i = 0; i < voxelsList.size(); ++i)
     {
         Octant* childOctant = voxelsList[i];
-        double cubeSDF[8];                             // 保存sdf值
-        double cubeValid[8];                           // 指示该顶点是否有效
+        double cubeSDF[8];                             
+        double cubeValid[8];                           
 
-        // 计算叶节点边长和深度
-        double extent = extent_;         // octree最大边长
+        double extent = extent_;         
         while(extent > params_.minExtent)
         {
             extent /= 2.0;
         }
 
-        // 计算平均曲率
         if (childOctant->size > 0)
         {
             double sumCurvature = 0;
             uint32_t count = 0;
             for (const auto pointIdx : childOctant->successors_)
             {
-                if (normalConf[pointIdx])       // 如果该点有效
+                if (normalConf[pointIdx])       
                 {
                     sumCurvature += curvature[pointIdx];
                     count++;
@@ -997,7 +803,6 @@ void Octree::updateVoxel(std::unordered_set<Octant*> &voxels)
             childOctant->curvature = sumCurvature / (double)count;
         }
 
-        // 遍历voxel的8个顶点 以左上角为起始点 查询最近点计算SDF值
         for (int a = 0; a < 2; ++a)         // x方向
         {
             double x = childOctant->x + (a % 2 == 0 ? -1 : 1) * extent / 2.0;
