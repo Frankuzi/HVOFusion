@@ -14,19 +14,19 @@ def find_edges(indices, vertices, remove_duplicates=True):
     # edges_0 = [f0_e0, ..., fN_e0]
     # edges_1 = [f0_e1, ..., fN_e1]
     # edges_2 = [f0_e2, ..., fN_e2] 
-    edges_0 = torch.index_select(indices, 1, torch.tensor([0,1], device=indices.device))    # 根据indices查找一个三角面的三个边 indices中每一组保存了三个顶点的序号 edges_0[2558, 2]其中第二维的2表示边在verts顶点中的序号
+    edges_0 = torch.index_select(indices, 1, torch.tensor([0,1], device=indices.device))
     edges_1 = torch.index_select(indices, 1, torch.tensor([1,2], device=indices.device))
     edges_2 = torch.index_select(indices, 1, torch.tensor([2,0], device=indices.device))
 
     # Merge the into one tensor so that the three edges of one face appear sequentially
     # edges = [f0_e0, f0_e1, f0_e2, ..., fN_e0, fN_e1, fN_e2]
-    edges = torch.cat([edges_0, edges_1, edges_2], dim=1).view(indices.shape[0] * 3, -1)    # [7674, 2] 这些边有很多重复位置
+    edges = torch.cat([edges_0, edges_1, edges_2], dim=1).view(indices.shape[0] * 3, -1)
     
     edges_mask = vertex_mask = None
-    if remove_duplicates:       # 去除重复边
-        edges, _ = torch.sort(edges, dim=1)     # 对边的第二维度进行排序
-        edges, counts = torch.unique(edges, dim=0, return_counts=True)      # 去除重复后从原先的 [7674, 2]->[3837, 2]
-        mask = counts == 1      # 找到边缘edge
+    if remove_duplicates:
+        edges, _ = torch.sort(edges, dim=1) 
+        edges, counts = torch.unique(edges, dim=0, return_counts=True)
+        mask = counts == 1
         edges_indices = torch.nonzero(mask).squeeze()
         vertex_indices = edges[edges_indices]
         vertex_indices = torch.unique(torch.flatten(vertex_indices))
@@ -38,14 +38,13 @@ def find_edges(indices, vertices, remove_duplicates=True):
     return edges, edges_mask, vertex_mask
 
 def find_connected_faces(vertices, indices, normals):
-    edges, _, _ = find_edges(indices, vertices, remove_duplicates=False)    # 根据顶点信息查找边 不需要去除重复 [7674, 2] 其中2表示边的两个顶点index
+    edges, _, _ = find_edges(indices, vertices, remove_duplicates=False)
 
     # Make sure that two edges that share the same vertices have the vertex ids appear in the same order 对每一行的两个元素进行排序，使得每一行的元素从小到大排列
     edges, _ = torch.sort(edges, dim=1)
 
     # Now find edges that share the same vertices and make sure there are only manifold edges
-    # inverse_indices表示边的序号 保存的都是非重复边
-    _, inverse_indices, counts = torch.unique(edges, dim=0, sorted=False, return_inverse=True, return_counts=True)  # 去除重复的边
+    _, inverse_indices, counts = torch.unique(edges, dim=0, sorted=False, return_inverse=True, return_counts=True) 
     # assert counts.max() == 2
     
     face_correspondences = faceConnected.computeFaceCorrespondences(inverse_indices.cpu(), counts.max(), counts.shape[0], indices.shape[0])
@@ -58,7 +57,7 @@ class AABB:
         Args:
             points (tensor): Set of points (N x 3).
         """
-        self.min_p, self.max_p = np.amin(points, axis=0), np.amax(points, axis=0)   # 定义AABB包围框的两个对角线顶点
+        self.min_p, self.max_p = np.amin(points, axis=0), np.amax(points, axis=0)
 
     @classmethod
     def load(cls, path):
@@ -77,11 +76,11 @@ class AABB:
         return 0.5 * (self.max_p + self.min_p)
 
     @property
-    def longest_extent(self):       # AABB包围框的边长
+    def longest_extent(self): 
         return np.amax(self.max_p - self.min_p)
 
     @property
-    def corners(self):      # 返回8个顶点的坐标
+    def corners(self):      
         return np.array([
             [self.min_p[0], self.min_p[1], self.min_p[2]],
             [self.max_p[0], self.min_p[1], self.min_p[2]],
@@ -110,9 +109,9 @@ def normalize_aabb(aabb: AABB, side_length: float = 1):
     """
 
     T = np.eye(4, dtype=np.float32)
-    T[:3, 3] = -aabb.center         # 构造位姿矩阵 aabb平移到0,0,0处
+    T[:3, 3] = -aabb.center         
 
-    s = side_length / aabb.longest_extent   # 将AABB包围框按照比例s缩放到side_length长度
+    s = side_length / aabb.longest_extent 
     S = np.diag([s, s, s, 1]).astype(dtype=np.float32)
 
     A = S @ T
@@ -121,8 +120,6 @@ def normalize_aabb(aabb: AABB, side_length: float = 1):
 
 def compute_laplacian_uniform(mesh):
     """
-    网格平滑的经典算法
-    基本概念可以作为神经网络预测3D mesh的一些约束
     Computes the laplacian in packed form.
     The definition of the laplacian is
     L[i, j] =    -1       , if i == j
@@ -132,43 +129,42 @@ def compute_laplacian_uniform(mesh):
     Returns:
         Sparse FloatTensor of shape (V, V) where V = sum(V_n)
     """
-    # 论文参考 Laplacian Mesh Optimization
     # This code is adapted from from PyTorch3D 
     # (https://github.com/facebookresearch/pytorch3d/blob/88f5d790886b26efb9f370fb9e1ea2fa17079d19/pytorch3d/structures/meshes.py#L1128)
 
-    verts_packed = mesh.vertices # (sum(V_n), 3) [1273, 3] mesh顶点
-    edges_packed = mesh.edges    # (sum(E_n), 2) [3837, 2] mesh边
-    V = mesh.vertices.shape[0]      # 顶点总数量1273
+    verts_packed = mesh.vertices 
+    edges_packed = mesh.edges    
+    V = mesh.vertices.shape[0]      
 
-    e0, e1 = edges_packed.unbind(1)     # 每条边的提取两个顶点
+    e0, e1 = edges_packed.unbind(1)     
 
-    idx01 = torch.stack([e0, e1], dim=1)  # (sum(E_n), 2)   将顶点的index stack为01
-    idx10 = torch.stack([e1, e0], dim=1)  # (sum(E_n), 2)   将顶点的index stack为10
-    idx = torch.cat([idx01, idx10], dim=0).t()  # (2, 2*sum(E_n)) [2, 7674]
+    idx01 = torch.stack([e0, e1], dim=1)  
+    idx10 = torch.stack([e1, e0], dim=1)  
+    idx = torch.cat([idx01, idx10], dim=0).t()  
 
     # First, we construct the adjacency matrix,
     # i.e. A[i, j] = 1 if (i,j) is an edge, or
     # A[e0, e1] = 1 &  A[e1, e0] = 1
-    ones = torch.ones(idx.shape[1], dtype=torch.float32, device=mesh.device)    # [7674]
-    A = torch.sparse.FloatTensor(idx, ones, (V, V))     # A邻接矩阵 idx坐标 ones值
+    ones = torch.ones(idx.shape[1], dtype=torch.float32, device=mesh.device)    
+    A = torch.sparse.FloatTensor(idx, ones, (V, V))     
 
     # the sum of i-th row of A gives the degree of the i-th vertex
-    deg = torch.sparse.sum(A, dim=1).to_dense() # 邻接矩阵每行求和表示该节点的度数，即与该节点相连的边数。
+    deg = torch.sparse.sum(A, dim=1).to_dense() 
 
-    # We construct the Laplacian matrix by adding the non diagonal values 构造Laplacian矩阵仅用非对角线值(参考论文公式5)
-    # i.e. L[i, j] = 1 ./ deg(i) if (i, j) is an edge  L[i, j]为论文中的wij(论文公式2)
+    # We construct the Laplacian matrix by adding the non diagonal values 
+    # i.e. L[i, j] = 1 ./ deg(i) if (i, j) is an edge 
     deg0 = deg[e0]
-    deg0 = torch.where(deg0 > 0.0, 1.0 / deg0, deg0)    # 论文中的wij
+    deg0 = torch.where(deg0 > 0.0, 1.0 / deg0, deg0)    
     deg1 = deg[e1]
-    deg1 = torch.where(deg1 > 0.0, 1.0 / deg1, deg1)    # 论文中的wij
+    deg1 = torch.where(deg1 > 0.0, 1.0 / deg1, deg1)   
     val = torch.cat([deg0, deg1])       # [7674]
     L = torch.sparse.FloatTensor(idx, val, (V, V))
 
-    # Then we add the diagonal values L[i, i] = -1. 参考论文公式5 对角线值为-1
+    # Then we add the diagonal values L[i, i] = -1. 
     idx = torch.arange(V, device=mesh.device)
-    idx = torch.stack([idx, idx], dim=0)        # 稀疏矩阵中对角线位置
-    ones = torch.ones(idx.shape[1], dtype=torch.float32, device=mesh.device)    # [1273]
-    L -= torch.sparse.FloatTensor(idx, ones, (V, V))    # 设置对角线值为-1
+    idx = torch.stack([idx, idx], dim=0)        
+    ones = torch.ones(idx.shape[1], dtype=torch.float32, device=mesh.device)    
+    L -= torch.sparse.FloatTensor(idx, ones, (V, V))   
 
     return L
 
@@ -184,7 +180,7 @@ def create_coordinate_grid(size: int, scale: float = 1.0, device: torch.device =
         Grid as tensor with shape (H, W, D, 3).
     """
 
-    grid = torch.stack(torch.meshgrid(                      # 在-1,1区间生成32*32*32*3坐标
+    grid = torch.stack(torch.meshgrid(                      
         torch.linspace(-1.0, 1.0, size, device=device),
         torch.linspace(-1.0, 1.0, size, device=device),
         torch.linspace(-1.0, 1.0, size, device=device)
@@ -206,9 +202,9 @@ def marching_cubes(voxel_grid: torch.tensor, voxel_occupancy: torch.tensor, leve
 
     from skimage import measure
     spacing = (voxel_grid[1, 1, 1] - voxel_grid[0, 0, 0]).cpu().numpy()
-    vertices, faces, normals, values = measure.marching_cubes_lewiner(voxel_occupancy.cpu().numpy(), level=0.5, spacing=spacing, **kwargs)  # spacing表示 长度为3的元组，表示体积中每个维度的像素间距
+    vertices, faces, normals, values = measure.marching_cubes_lewiner(voxel_occupancy.cpu().numpy(), level=0.5, spacing=spacing, **kwargs)  
 
-    # Re-center vertices 因为marching_cubes_lewiner输出的顶点坐标是以原点为中心的因此要进行坐标平移
+    # Re-center vertices 因为marching_cubes_lewiner
     vertices += voxel_grid[0, 0, 0].cpu().numpy()
 
     vertices = torch.from_numpy(vertices.copy()).to(voxel_grid.device)
