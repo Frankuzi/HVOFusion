@@ -135,22 +135,18 @@ namespace Eigen
         return {crossProduct.row(index) / length, length};
     }
 
-    // 计算给定 3x3 矩阵的最大特征值和相应的特征向量的函数
-    // mat：一个 3x3 的矩阵，表示要计算特征值和特征向量的矩阵
-    // eigenvalue：一个 typename Matrix::Scalar 类型的变量，用于存储计算得到的最大特征值
-    // eigenvector：一个 Vector 类型的引用，用于存储计算得到的最大特征值对应的特征向量
     template <typename Matrix, typename Vector>
     inline void computeEigen33(const Matrix &mat, typename Matrix::Scalar &eigenvalue, Vector &eigenvector)
     {
         using Scalar = typename Matrix::Scalar;
         // Scale the matrix so its entries are in [-1,1].  The scaling is applied
-        // only when at least one matrix entry has magnitude larger than 1.   将矩阵值缩放到[-1, 1]之间
+        // only when at least one matrix entry has magnitude larger than 1.  
 
-        Scalar scale = mat.cwiseAbs().maxCoeff(); // 求绝对值和最大值
+        Scalar scale = mat.cwiseAbs().maxCoeff(); 
         if (scale <= std::numeric_limits<Scalar>::min())
             scale = Scalar(1.0);
 
-        Matrix scaledMat = mat / scale; // 缩放
+        Matrix scaledMat = mat / scale; 
 
         Vector eigenvalues;
         computeRoots(scaledMat, eigenvalues);
@@ -162,19 +158,18 @@ namespace Eigen
         eigenvector = getLargest3x3Eigenvector<Vector>(scaledMat).vector;
     }
 
-    // 计算给定 3x3 矩阵的最大特征值
     template <typename Matrix, typename Vector>
     inline void computeEigen33Values(const Matrix &mat, Vector &eigenvalue)
     {
         using Scalar = typename Matrix::Scalar;
         // Scale the matrix so its entries are in [-1,1].  The scaling is applied
-        // only when at least one matrix entry has magnitude larger than 1.   将矩阵值缩放到[-1, 1]之间
+        // only when at least one matrix entry has magnitude larger than 1.   
 
-        Scalar scale = mat.cwiseAbs().maxCoeff(); // 求绝对值和最大值
+        Scalar scale = mat.cwiseAbs().maxCoeff(); 
         if (scale <= std::numeric_limits<Scalar>::min())
             scale = Scalar(1.0);
 
-        Matrix scaledMat = mat / scale; // 缩放
+        Matrix scaledMat = mat / scale; 
 
         Vector eigenvalues;
         computeRoots(scaledMat, eigenvalues);
