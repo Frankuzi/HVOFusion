@@ -31,12 +31,11 @@ def write_mesh(path, mesh):
     mesh_ = trimesh.Trimesh(vertices=vertices, faces=indices, vertex_colors=colors, process=False)
     mesh_.export(path, file_type='ply')
 
-# 读取replica数据集
 def read_views(directory, name, device):
     directory = Path(directory)
     if name == 'Replica':
-        image_paths_jpg = natsorted([path for path in directory.iterdir() if (path.is_file() and path.suffix == '.jpg')])      # 读取文件夹中的jpg文件
-        depth_paths_png = natsorted([path for path in directory.iterdir() if (path.is_file() and path.suffix == '.png')])      # 读取文件夹中的png文件
+        image_paths_jpg = natsorted([path for path in directory.iterdir() if (path.is_file() and path.suffix == '.jpg')])      
+        depth_paths_png = natsorted([path for path in directory.iterdir() if (path.is_file() and path.suffix == '.png')])      
         
         views = []
         for image_path, depth_path in zip(image_paths_jpg, depth_paths_png):
@@ -44,7 +43,7 @@ def read_views(directory, name, device):
         print("Found {:d} views".format(len(views)))
         return views
     if name == 'Scannet':
-        depth_paths_png = natsorted([path for path in directory.iterdir() if (path.is_file() and path.suffix == '.png')])      # 读取文件夹中的png文件
+        depth_paths_png = natsorted([path for path in directory.iterdir() if (path.is_file() and path.suffix == '.png')])      
 
         depth_views = []
         for i in range(len(depth_paths_png)):
@@ -52,7 +51,7 @@ def read_views(directory, name, device):
             depth_views.append(ViewDepth.load(depth_path, i, device))
         print("Found {:d} depth views".format(len(depth_views)))
 
-        color_paths_jpg = natsorted([path for path in directory.iterdir() if (path.is_file() and path.suffix == '.jpg')])      # 读取文件夹中的png文件
+        color_paths_jpg = natsorted([path for path in directory.iterdir() if (path.is_file() and path.suffix == '.jpg')])      
 
         color_views = []
         for i in range(len(color_paths_jpg)):
@@ -69,7 +68,6 @@ def read_views(directory, name, device):
         print("Found {:d} views".format(len(views)))
         return views
 
-# 读取iPhone数据集
 def read_iphone(directory, scale, device):
     depth_file_paths = natsorted(glob.glob(os.path.join(directory, 'depth*.png')))
     color_file_paths = natsorted(glob.glob(os.path.join(directory, 'color*.png')))
@@ -80,7 +78,7 @@ def read_iphone(directory, scale, device):
         views.append(View.load2(image_path, depth_path, mask_path, device))
     print("Found {:d} views".format(len(views)))
 
-    if scale > 1:       # 对图像进行缩放 这个操作采用opencv是不可微分的
+    if scale > 1:      
         for view in views:
             view.scale(scale)
         print("Scaled views to 1/{:d}th size".format(scale))
