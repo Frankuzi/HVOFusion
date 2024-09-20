@@ -27,13 +27,11 @@ torch.classes.load_library(
 
 
 def main():    
-    ### Step1: 读取配置文件
     parser = ArgumentParser(description='Test', formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument('config', type=str, help='Path to config file.')
     args = parser.parse_args()
     cfg = load_config(args.config)
     
-    ### Step2: 构建输出文件夹
     # Select the device
     device = torch.device('cpu')
     if torch.cuda.is_available() and cfg['device'] >= 0:
@@ -53,23 +51,19 @@ def main():
     results_images_save_path.mkdir(parents=True, exist_ok=True)
     results_meshes_save_path.mkdir(parents=True, exist_ok=True)
 
-    ### Step3: 读取数据集中的相机图像等信息 读取bound信息
     views = read_views(input_dir, cfg['datasets_name'], device=device)
     # Configure the view sampler
     view_sampler = ViewSampler(views=views, **ViewSampler.get_parameters(cfg))
     # Read AABB Bound
     aabb = AABB(np.array([[cfg['bound'][0][0], cfg['bound'][1][0], cfg['bound'][2][0]], [cfg['bound'][0][1], cfg['bound'][1][1], cfg['bound'][2][1]]], dtype=np.float32))
     
-    ### Step4: 初始化SVO 初始化用于保存mesh顶点和index的变量
     svo = torch.classes.svo.Octree()
     svo.init(torch.tensor(aabb.center), aabb.longest_extent, cfg['minExtent'], cfg['minSize'], cfg['pointsValid'], cfg['normalRadius'], cfg['curvatureTHR'], \
         cfg['sdfRadius'], cfg['reconTHR'], cfg['minBorder'], cfg['render_interval'], cfg['subLevel'], cfg['weightMode'], cfg['allSampleMode'])
     
-    ### Step5: 创建Render 颜色优化变量和NeuralShader
     renderer = Renderer(device=device)
-    renderer.set_near_far(views, torch.from_numpy(aabb.corners).to(device), epsilon=0.5)    # 根据相机的观测视角设置最近和最远渲染平面
+    renderer.set_near_far(views, torch.from_numpy(aabb.corners).to(device), epsilon=0.5)    
     
-    ### Step6: Loss函数和权重初始化
     loss_weights = {
         "mask": cfg['weight_mask'],
         "normal": cfg['weight_normal_consistency'],
@@ -78,16 +72,15 @@ def main():
         "depth": cfg['weight_depth'],
         "edge": cfg['weight_edge'],
     }
-    losses = {k: torch.tensor(0.0, device=device) for k in loss_weights}    # 创建字典保存loss值
+    losses = {k: torch.tensor(0.0, device=device) for k in loss_weights}   
 
     for i in tqdm(range(len(views))):
         svo.updateTree(views[i].depth.squeeze().cpu(), views[i].camera.K.cpu(), views[i].camera.Rt.cpu(), i)
         if (i+1) % cfg['render_interval'] == 0:
-            # 获得mc结果 获得点云结果 创建mesh
             verts, faces, index, pcd_points, pcd_normals, verts_mask, faces_mask = svo.packOutput()       
             pcd_points = pcd_points.unsqueeze(0).to(device)
             pcd_normals = pcd_normals.unsqueeze(0).to(device)
-            mesh_initial = Mesh(verts, faces, None, device=device)      # 构建mesh
+            mesh_initial = Mesh(verts, faces, None, device=device)      
             mesh_initial.compute_connectivity()
             bound = np.stack([aabb.minmax[0], aabb.minmax[1]]).transpose(1, 0)
             bound = torch.from_numpy(bound).to(device)
@@ -96,16 +89,13 @@ def main():
             # tmp_mesh.vertices = o3d.utility.Vector3dVector(mesh_initial.vertices.detach().cpu().numpy())
             # tmp_mesh.triangles = o3d.utility.Vector3iVector(mesh_initial.indices.detach().cpu().numpy())
             # o3d.io.write_triangle_mesh("test.ply", tmp_mesh)
-            # 创建顶点优化变量
             lr_vertices = cfg['lr_vertices']
-            vertex_offsets = torch.zeros_like(mesh_initial.vertices)    # [xxx, 3] 创建一个zero数组用于优化顶点偏移量
+            vertex_offsets = torch.zeros_like(mesh_initial.vertices)    
             vertex_offsets.requires_grad = True
             optimizer_vertices = torch.optim.Adam([vertex_offsets], lr=lr_vertices)
-            # 创建albedo优化变量
             vertex_albedo = torch.ones_like(mesh_initial.vertices) * 0.01
             vertex_albedo.requires_grad = True
-            # 创建spherical harmonics coefficients优化变量 
-            # compute sphere harmonic coefficient as initialization 预计算球谐系数
+            # compute sphere harmonic coefficient as initialization 
             with torch.no_grad():
                 valid_normals = []
                 valid_grayimgs = []
@@ -127,17 +117,15 @@ def main():
             vertex_sh = torch.from_numpy(sh_coeff.astype(np.float32)).to(device)
             vertex_sh.requires_grad_(True)
             optimizer_colors = torch.optim.Adam([{'params': vertex_albedo, 'lr': cfg['lr_color']}, {'params': vertex_sh, 'lr': cfg['lr_sh']}])
-            # 创建颜色损失列表
             color_losses = []
             color_loss = torch.zeros([mesh_initial.indices.size(0), 2], device=device)
             
-            # 主循环
             iterations = cfg['iterations']
             progress_bar = tqdm(range(1, iterations + 1), leave=False)
             for iteration in progress_bar:
                 progress_bar.set_description(desc=f'Iteration {iteration}')
                 # Deform the initial mesh
-                mesh = mesh_initial.with_vertices(mesh_initial.vertices + vertex_offsets)   # 每次训练都会把顶点偏移量更新一下
+                mesh = mesh_initial.with_vertices(mesh_initial.vertices + vertex_offsets)   
                 recon_xyz, recon_normals = sample_surface(mesh.indices[faces_mask], mesh.vertices.unsqueeze(0), int(pcd_points.size(1)*1.5))
                 views_subset, views_index = view_sampler(views[i+1-cfg['render_interval']: i+1])     # views[i+1-cfg['render_interval']: i+1]
                 # pcd1 = o3d.geometry.PointCloud()
@@ -176,7 +164,6 @@ def main():
                 optimizer_colors.step()
                 progress_bar.set_postfix({'depth loss': losses['depth'].detach().cpu(), 'shading loss': losses['shading'].detach().cpu()})
                 
-                # 更新颜色loss列表
                 if cfg['view_sampling_mode'] == 'importance_sampling':
                     if len(color_losses) < cfg['render_interval']:
                         color_losses.append(losses['shading'].detach().cpu().numpy())
@@ -239,7 +226,6 @@ def main():
     mesh_out.triangles = o3d.utility.Vector3iVector(faces)
     mesh_out.vertex_colors  = o3d.utility.Vector3dVector(color)
     
-    # 是否进行后处理
     if cfg['postprocess']:
         print('Postprocessing...')
         # mesh_out = mesh_out.filter_smooth_laplacian(number_of_iterations=1)
@@ -276,7 +262,6 @@ def main():
         vertex_colors = torch.clamp(vertex_colors, min=0.0, max=1.0)
         mesh_out.vertex_colors = o3d.utility.Vector3dVector(vertex_colors.detach().cpu())
     
-    # 渲染图像 保存mesh
     render_index = [0, 19, 39, 59, 79, 99, 119, 139, 159, 179, 199]
     for i in render_index:
         with torch.no_grad():
