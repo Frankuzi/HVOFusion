@@ -66,7 +66,6 @@ If you find this code useful for your research, please consider citing:
   pages     = {6850--6858},
   year      = {2024},
 }
-
 ```
 
 ## Acknowledgements
