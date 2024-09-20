@@ -8,7 +8,6 @@ def normal_consistency_loss(mesh: Mesh):
     Args:
         mesh (Mesh): Mesh with face normals.
     """
-    # 这里认为相邻的两个面的法向量是一致的
     
     loss = 1 - torch.cosine_similarity(mesh.face_normals[mesh.connected_faces[:, 0]], mesh.face_normals[mesh.connected_faces[:, 1]], dim=1)
     
